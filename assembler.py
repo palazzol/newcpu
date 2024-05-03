@@ -62,6 +62,7 @@ def assemble(assembly_filename, output_filename):
         return symbols[word]
 
     for i in range(offset, len(lines)):
+        linenum = i+1
         words = [word.lower() for word in lines[i].split()]
 
         # Remove label, we have it in symbols now
@@ -93,57 +94,57 @@ def assemble(assembly_filename, output_filename):
 
         # Number of operands check
         if opcode in ['nop', 'hlt', 'ret'] and len(words) != 1:
-            exit(f'Incorrect number of operands for {opcode} on line {i}')
+            exit(f'Incorrect number of operands for {opcode} on line {linenum}')
         
         if opcode in ['jmp', 'cal'] and len(words) != 2:
-            exit(f'Incorrect number of operands for {opcode} on line {i}')
+            exit(f'Incorrect number of operands for {opcode} on line {linenum}')
 
         if opcode in ['rsh', 'ldi', 'adi', 'brh'] and len(words) != 3:
-            exit(f'Incorrect number of operands for {opcode} on line {i}')
+            exit(f'Incorrect number of operands for {opcode} on line {linenum}')
 
         if opcode in ['add', 'sub', 'nor', 'and', 'xor', 'lod', 'str'] and len(words) != 4:
-            exit(f'Incorrect number of operands for {opcode} on line {i}')
+            exit(f'Incorrect number of operands for {opcode} on line {linenum}')
 
         # First register
         if opcode in ['add', 'sub', 'nor', 'and', 'xor', 'rsh', 'ldi', 'adi', 'lod', 'str']:
             if words[1] != (words[1] % (2 ** 4)):
-                exit(f'Invalid first register for {opcode} on line {i}')
+                exit(f'Invalid first register for {opcode} on line {linenum}')
             machine_code |= (words[1] << 8)
 
         # Reg A
         if opcode in ['add', 'sub', 'nor', 'and', 'xor', 'rsh', 'lod', 'str']:
             if words[2] != (words[2] % (2 ** 4)):
-                exit(f'Invalid reg A for {opcode} on line {i}')
+                exit(f'Invalid reg A for {opcode} on line {linenum}')
             machine_code |= (words[2] << 4)
 
         # Reg B
         if opcode in ['add', 'sub', 'nor', 'and', 'xor']:
             if words[3] != (words[3] % (2 ** 4)):
-                exit(f'Invalid reg B for {opcode} on line {i}')
+                exit(f'Invalid reg B for {opcode} on line {linenum}')
             machine_code |= words[3]
 
         # Immediate
         if opcode in ['ldi', 'adi']:
             if words[2] < -128 or words[2] > 255: # 2s comp [-128, 127] or uint [0, 255]
-                exit(f'Invalid immediate for {opcode} on line {i}')
+                exit(f'Invalid immediate for {opcode} on line {linenum}')
             machine_code |= words[2] & (2 ** 8 - 1)
         
         # Instruction memory address
         if opcode in ['jmp', 'brh', 'cal']:
             if words[-1] != (words[-1] % (2 ** 10)):
-                exit(f'Invalid instruction memory address for {opcode} on line {i}')
+                exit(f'Invalid instruction memory address for {opcode} on line {linenum}')
             machine_code |= words[-1]
 
         # Condition
         if opcode in ['brh']:
             if words[1] != (words[1] % (2 ** 2)):
-                exit(f'Invalid condition for {opcode} on line {i}')
+                exit(f'Invalid condition for {opcode} on line {linenum}')
             machine_code |= (words[1] << 10)
 
         # Offset
         if opcode in ['lod', 'str']:
             if words[3] < -8 or words[3] > 7: # 2s comp [-7, 8]
-                exit(f'Invalid offset for {opcode} on line {i}')
+                exit(f'Invalid offset for {opcode} on line {linenum}')
             machine_code |= words[3] & (2 ** 4 - 1)
 
         as_string = bin(machine_code)[2:].rjust(16, '0')
