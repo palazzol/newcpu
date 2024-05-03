@@ -1,4 +1,98 @@
 from sys import argv, exit
+from random import randint
+
+class DataMemory:
+    def __init__(self):
+        # internal memory
+        self.datamem = [0] * 240
+
+        self.pixel_X = 0
+        self.pixel_Y = 0
+        self.screen = [0] * (32*32)
+        self.screenbuf = [0] * (32*32)
+
+        self.charbuf = b''
+
+        self.numsigned = False
+        self.number = 0
+
+    def read(self, address):
+        if address < 240:
+            return self.datamem[address]
+        
+        # IO reads here
+        if address == 240:
+            return self.pixel_X
+        elif address == 241:
+            return self.pixel_Y
+        elif address == 254:
+            return randint(0,255)
+        elif address == 255:
+            return 0  # TBD controller
+        else:
+            return 0  # Unmapped
+
+    def write(self, address, data):
+        if address < 240:
+            self.datamem[address] = data
+            return
+        
+        # IO writes here
+        if address == 240:
+            self.pixel_X = data & 0x1f
+        elif address == 241:
+            self.pixel_Y = data & 0x1f
+        elif address == 242:
+            self.screenbuf[self.pixel_Y*32 + self.pixel_X] = 1
+            #self.print_screenbuf()
+        elif address == 243:
+            self.screenbuf[self.pixel_Y*32 + self.pixel_X] = 0
+            #self.print_screenbuf()
+        elif address == 245:
+            self.screen = self.screenbuf.copy()
+            self.print_screen()
+        elif address == 246:
+            self.screen = [0] * (32*32)
+            self.print_screen()
+        elif address == 247:
+            self.charbuf += bytes(data)
+        elif address == 248:
+            print(self.charbuf)
+        elif address == 249:
+            self.charbuf = b''
+        elif address == 250:
+            if self.numsigned:
+                if self.number > 127:
+                    print(self.number - 256)
+                else:
+                    print(self.number)
+        elif address == 251:
+            self.number = 0
+        elif address == 252:
+            self.numsigned = True
+        elif address == 253:
+            self.numsigned = False
+
+    def print_screen(self):
+        print('Screen:')
+        for y in range(0,32):
+            for x in range(0,32):
+                if self.screen[y*32+x] == 1:
+                    print('1',end='')
+                else:
+                    print('0',end='')
+            print()
+        print()
+
+    def print_screenbuf(self):
+        for y in range(0,32):
+            for x in range(0,32):
+                if self.screenbuf[y*32+x] == 1:
+                    print('1',end='')
+                else:
+                    print('0',end='')
+            print()
+        print()
 
 class Simulator:
     def __init__(self):
@@ -10,13 +104,8 @@ class Simulator:
         self.SP = 0                     # Stack Pointer (index)
         self.reg = [0] * 16             # Registers (Note: index 0 is not writable)
 
-        self.datamem = [0] * 256        # Data Memory
+        self.datamem = DataMemory()     # Data Memory
         self.instmem = [0x1000] * 2048  # Instruction Memory (preload with HLT instructions)
-
-        self.pixel_X = 0
-        self.pixel_Y = 0
-        self.screen = [0] * (32*32)
-        self.screenbuf = [0] * (32*32)
 
     def load(self, filename):
         print(f'Loading instruction memory from file {filename}...')
@@ -145,7 +234,7 @@ class Simulator:
                 if arg3 > 7:
                     arg3 -= 16
                 print(f'PC={self.PC}: LOD r{arg1} mem[r{arg2}+{arg3}]')
-                temp = self.datamem[self.reg[arg2] + arg3]
+                temp = self.datamem.read(self.reg[arg2] + arg3)
                 if arg1 != 0:
                     self.reg[arg1] = temp
                 self.PC += 1
@@ -155,54 +244,14 @@ class Simulator:
                 addr = self.reg[arg2] + arg3
                 data = self.reg[arg1]
                 print(f'PC={self.PC}: STR r{arg1} mem[r{arg2}+{arg3}]')
-                self.datamem[addr] = data
+                self.datamem.write(addr, data)
                 #print(f'writing {data} to {addr}')
-                if addr >= 240:
-                    self.write(addr, data)
                 self.PC += 1
             #for i in range(0,8):
             #    print(f'r[{i}]={self.reg[i]} ',end='')
             #print(f'C={self.C} Z={self.Z}')
             step += 1
         return step-1
-
-    def write(self, addr, data):
-        if addr == 240:
-            self.pixel_X = data & 0x1f
-        elif addr == 241:
-            self.pixel_Y = data & 0x1f
-        elif addr == 242:
-            self.screenbuf[self.pixel_Y*32 + self.pixel_X] = 1
-            #self.print_screenbuf()
-        elif addr == 243:
-            self.screenbuf[self.pixel_Y*32 + self.pixel_X] = 0
-            #self.print_screenbuf()
-        elif addr == 245:
-            self.screen = self.screenbuf.copy()
-            self.print_screen()
-        elif addr == 246:
-            self.screen = [0] * (32*32)
-
-    def print_screen(self):
-        print('Screen:')
-        for y in range(0,32):
-            for x in range(0,32):
-                if self.screen[y*32+x] == 1:
-                    print('1',end='')
-                else:
-                    print('0',end='')
-            print()
-        print()
-
-    def print_screenbuf(self):
-        for y in range(0,32):
-            for x in range(0,32):
-                if self.screenbuf[y*32+x] == 1:
-                    print('1',end='')
-                else:
-                    print('0',end='')
-            print()
-        print()
 
 def main():
     if len(argv) < 2:
