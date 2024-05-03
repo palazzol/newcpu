@@ -4,7 +4,7 @@
         LDI r1 15    // x
         LDI r2 15    // y
 
-.loop   LDI r15 254     // Controller Input
+.loop   LDI r15 255     // Controller Input
         LOD r3 r15
       
         LDI r4 1        // Left
